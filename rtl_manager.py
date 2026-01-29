@@ -13,6 +13,24 @@ import os
 import shlex
 from pathlib import Path
 
+# If running inside Home Assistant, /config is mounted. rtl_433's default conf search
+# honors XDG_CONFIG_HOME; set a safe default so users can drop:
+#   /config/rtl_433/rtl_433.conf
+# without needing to specify -c in RTL-HAOS.
+def _rtl433_subprocess_env() -> dict:
+    env = os.environ.copy()
+    # Respect user-supplied XDG_CONFIG_HOME if present
+    if not env.get("XDG_CONFIG_HOME"):
+        for candidate in ("/config", "/share", "/data"):
+            try:
+                if Path(candidate).is_dir():
+                    env["XDG_CONFIG_HOME"] = candidate
+                    break
+            except Exception:
+                continue
+    return env
+
+
 from datetime import datetime
 from typing import Optional
 
@@ -207,6 +225,76 @@ def _ensure_rtl433_outputs(cmd: list[str], *, radio_label: str, global_map: dict
         cmd.extend(["-M", "level"])
 
     return cmd
+
+
+# --- rtl_433 config validation (warning-only) ---
+#
+# This is intentionally *non-blocking* for ease-of-use: users can still do
+# advanced workflows, but they get clear warnings for common foot-guns that
+# frequently cause confusion in Home Assistant (restart loops, double MQTT
+# publishing, etc.).
+
+
+def _lint_rtl433_command(cmd: list[str], *, radio_label: str) -> None:
+    """Emit warning-only guidance for common rtl_433 passthrough pitfalls."""
+
+    argv = [str(a) for a in (cmd[1:] if cmd else [])]
+    if not argv:
+        return
+
+    # Flags that intentionally exit immediately.
+    if "-V" in argv or any(a.startswith("--version") for a in argv):
+        print(
+            f"WARNING: [VALIDATE]: {radio_label} includes '-V/--version'. "
+            "rtl_433 will exit immediately and the add-on will restart it."
+        )
+
+    if "-h" in argv or any(a in ("--help", "--usage") or a.startswith("--help=") for a in argv):
+        print(
+            f"WARNING: [VALIDATE]: {radio_label} includes '-h/--help'. "
+            "rtl_433 will exit immediately and the add-on will restart it."
+        )
+
+    # Flags that make rtl_433 run for a finite duration then exit.
+    def _first_value(flag: str) -> str:
+        try:
+            i = argv.index(flag)
+        except ValueError:
+            return ""
+        if i + 1 < len(argv) and not _is_option_token(argv[i + 1]):
+            return str(argv[i + 1])
+        return ""
+
+    if "-T" in argv:
+        v = _first_value("-T")
+        print(
+            f"WARNING: [VALIDATE]: {radio_label} includes '-T{(' ' + v) if v else ''}'. "
+            "rtl_433 will stop after the time limit and the add-on will restart it."
+        )
+
+    if "-n" in argv:
+        v = _first_value("-n")
+        print(
+            f"WARNING: [VALIDATE]: {radio_label} includes '-n{(' ' + v) if v else ''}'. "
+            "rtl_433 will stop after the sample limit and the add-on will restart it."
+        )
+
+    # rtl_433 MQTT output is valid, but rtl-haos already republishes via MQTT.
+    # Turning on rtl_433 MQTT output usually means duplicate publishers.
+    has_mqtt_output = False
+    for i, tok in enumerate(argv[:-1]):
+        if tok == "-F":
+            v = str(argv[i + 1])
+            vl = v.lower()
+            if vl.startswith("mqtt") or vl.startswith("mqtts"):
+                has_mqtt_output = True
+                break
+
+    if has_mqtt_output:
+        print(
+            f"WARNING: [VALIDATE]: {radio_label} enables rtl_433 MQTT output (-F mqtt...). "
+            "RTL-HAOS already publishes decoded data to MQTT, so this usually causes duplicate events."
+        )
 
 def _resolve_config_path(path_str: str) -> str:
     """Resolve an rtl_433 config path.
@@ -403,6 +491,9 @@ def build_rtl_433_command(radio_config: dict) -> list[str]:
 
     # Ensure JSON output so RTL-HAOS can parse messages, plus default metadata.
     cmd = _ensure_rtl433_outputs(cmd, radio_label=radio_label, global_map=global_map)
+
+    # Warning-only validation to help users avoid common passthrough foot-guns.
+    _lint_rtl433_command(cmd, radio_label=radio_label)
 
     return cmd
 
@@ -794,6 +885,7 @@ def rtl_loop(radio_config: dict, mqtt_handler, data_processor, sys_id: str, sys_
 
             process = subprocess.Popen(
                 cmd,
+                env=_rtl433_subprocess_env(),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,

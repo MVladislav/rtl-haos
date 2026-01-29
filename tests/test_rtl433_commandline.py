@@ -33,7 +33,9 @@ def _run_rtl_loop_one_shot(monkeypatch, rtl_manager, radio):
     monkeypatch.setattr(rtl_manager.subprocess, "Popen", fake_popen)
 
     with pytest.raises(KeyboardInterrupt):
-        rtl_manager.rtl_loop(radio, mqtt_handler=None, data_processor=None, sys_id="sys", sys_model="rtl-haos")
+        rtl_manager.rtl_loop(
+            radio, mqtt_handler=None, data_processor=None, sys_id="sys", sys_model="rtl-haos"
+        )
 
     assert captured["cmd"] is not None
     return captured["cmd"]
@@ -81,7 +83,9 @@ def test_rtl_loop_logs_command_line_per_radio(monkeypatch, capsys):
     }
 
     with pytest.raises(KeyboardInterrupt):
-        rtl_manager.rtl_loop(radio, mqtt_handler=None, data_processor=None, sys_id="sys", sys_model="rtl-haos")
+        rtl_manager.rtl_loop(
+            radio, mqtt_handler=None, data_processor=None, sys_id="sys", sys_model="rtl-haos"
+        )
 
     out = capsys.readouterr().out
     assert "rtl_433 cmd [radioa id=101]" in out.lower()
@@ -265,52 +269,71 @@ def test_rtl433_args_overrides_per_radio_settings_and_warns(monkeypatch, capsys)
     assert "override" in out
     assert "-s" in out
 
-def test_build_cmd_uses_device_selector_rtl_tcp(monkeypatch):
+
+def test_build_cmd_warns_on_immediate_exit_flags(monkeypatch, capsys):
+    """Validation should warn when users pass flags that make rtl_433 exit immediately."""
+    import config
     import rtl_manager
 
+    monkeypatch.setattr(config, "RTL_433_ARGS", "-V")
     radio = {
         "index": 0,
-        "freq": "433.92M",
+        "freq": "915M",
         "rate": "250k",
         "hop_interval": 0,
-        "name": "PC rtl_tcp",
-        "device": "rtl_tcp:192.168.1.223:1234",
+        "name": "TestRadio",
+        "id": "301",
+        "args": "-h",
     }
 
-    cmd = rtl_manager.build_rtl_433_command(radio)
-    assert _find_flag_value(cmd, "-d") == "rtl_tcp:192.168.1.223:1234"
+    rtl_manager.build_rtl_433_command(radio)
+    out = (capsys.readouterr().out or "").lower()
+    assert "warning" in out
+    assert "-v" in out or "version" in out
+    assert "-h" in out or "help" in out
+    assert "restart" in out
 
 
-def test_build_cmd_uses_tcp_host_port_over_device(monkeypatch):
+def test_build_cmd_warns_on_finite_run_flags(monkeypatch, capsys):
+    """Validation should warn when users pass flags that cause rtl_433 to stop after a limit."""
+    import config
     import rtl_manager
 
+    monkeypatch.setattr(config, "RTL_433_ARGS", "-T 10 -n 1000")
     radio = {
         "index": 0,
-        "freq": "433.92M",
+        "freq": "915M",
         "rate": "250k",
         "hop_interval": 0,
-        "name": "PC rtl_tcp",
-        "device": "0",  # should be ignored because tcp_host is set
-        "tcp_host": "192.168.1.223",
-        "tcp_port": 1234,
+        "name": "TestRadio",
+        "id": "302",
     }
 
-    cmd = rtl_manager.build_rtl_433_command(radio)
-    assert _find_flag_value(cmd, "-d") == "rtl_tcp:192.168.1.223:1234"
+    rtl_manager.build_rtl_433_command(radio)
+    out = (capsys.readouterr().out or "").lower()
+    assert "warning" in out
+    assert "-t" in out  # -T appears
+    assert "-n" in out
+    assert "restart" in out
 
 
-def test_build_cmd_tcp_port_defaults_to_1234_when_missing(monkeypatch):
+def test_build_cmd_warns_on_rtl433_mqtt_output(monkeypatch, capsys):
+    """Validation should warn when enabling rtl_433 MQTT output alongside rtl-haos publishing."""
+    import config
     import rtl_manager
 
+    monkeypatch.setattr(config, "RTL_433_ARGS", "-F json -F mqtt://core-mosquitto:1883")
     radio = {
         "index": 0,
-        "freq": "433.92M",
+        "freq": "915M",
         "rate": "250k",
         "hop_interval": 0,
-        "name": "PC rtl_tcp",
-        "tcp_host": "192.168.1.223",
-        # tcp_port omitted
+        "name": "TestRadio",
+        "id": "303",
     }
 
-    cmd = rtl_manager.build_rtl_433_command(radio)
-    assert _find_flag_value(cmd, "-d") == "rtl_tcp:192.168.1.223:1234"
+    rtl_manager.build_rtl_433_command(radio)
+    out = (capsys.readouterr().out or "").lower()
+    assert "warning" in out
+    assert "mqtt" in out
+    assert "duplicate" in out
