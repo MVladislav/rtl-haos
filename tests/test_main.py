@@ -122,4 +122,3 @@ def test_main_smoke_run_exits_cleanly(mocker):
     mocker.patch.object(main.threading, "Thread", DummyThread)
 
     main.main()
-

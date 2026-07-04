@@ -67,18 +67,18 @@ def test_main_manual_config_duplicate_ids_and_unconfigured_hardware(mocker, caps
     main.main()
 
     out = capsys.readouterr().out.lower()
-    
+
     # --- UPDATED ASSERTIONS FOR NEW BEHAVIOR ---
     # Old behavior: assert "multiple sdrs detected with same serial" in out
     # New behavior: The duplicates are renamed, so the warning is gone.
     assert "renamed duplicate serial 'abc' to 'abc-1'" in out
-    
+
     # The CONFIG still has duplicates, so this error should still appear:
-    assert "duplicate id 'abc'" in out 
-    
+    assert "duplicate id 'abc'" in out
+
     # "Missing" radio logic remains the same
     assert "configured serial nope not found" in out
-    
+
     # "EXTRA" logic remains the same
     assert "detected but not configured" in out
 
@@ -153,7 +153,7 @@ def test_main_deduplicates_hardware_serials(mocker, capsys):
     mocker.patch.object(main, "show_logo", lambda *_: None)
     mocker.patch.object(main, "check_dependencies", lambda: None)
     mocker.patch.object(main, "get_system_mac", return_value="aa:bb:cc:dd:ee:ff")
-    
+
     class DummyMQTT:
         def __init__(self, version=None): self.version = version
         def start(self): return
@@ -167,7 +167,7 @@ def test_main_deduplicates_hardware_serials(mocker, capsys):
     mocker.patch.object(main, "DataProcessor", DummyProcessor)
     mocker.patch.object(main, "system_stats_loop", lambda *a, **k: None)
     mocker.patch.object(main, "rtl_loop", lambda *a, **k: None)
-    
+
     # --- The Core Scenario: 2 Devices, Same Serial ---
     mocker.patch.object(
         main,
@@ -177,9 +177,9 @@ def test_main_deduplicates_hardware_serials(mocker, capsys):
             {"name": "RTL_00000001", "id": "00000001", "index": 1}, # Duplicate!
         ],
     )
-    
+
     mocker.patch.object(config, "RTL_CONFIG", None)
-    
+
     # --- FIX: Increase sleep count to survive startup ---
     # 1. Logo
     # 2. Radio 1 Start
@@ -196,10 +196,10 @@ def test_main_deduplicates_hardware_serials(mocker, capsys):
 
     # --- Verify ---
     out = capsys.readouterr().out
-    
+
     # 1. Check for the specific "Renamed" log message
     assert "Renamed duplicate Serial '00000001' to '00000001-1'" in out
-    
+
     # 2. Verify the hardware map contains BOTH keys
     assert "'00000001': 0" in out
     assert "'00000001-1': 1" in out

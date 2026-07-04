@@ -155,5 +155,3 @@ def test_auto_multi_three_radios_unknown_country_splits_868_915(monkeypatch):
 
     assert radios_by_slot[2]["freq"] == "915M"
     assert radios_by_slot[2]["hop_interval"] == 0
-
-

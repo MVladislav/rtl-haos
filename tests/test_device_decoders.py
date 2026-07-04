@@ -9,14 +9,14 @@ def test_neptune_water_meter_math(mocker):
     # 1. Setup mocks
     mock_mqtt = mocker.Mock()
     mock_processor = mocker.Mock()
-    
+
     # 2. Simulate the specific JSON from a Neptune meter
     # Note: Raw consumption is 12345, we expect 1234.5
     fake_lines = [
         '{"model": "Neptune-R900", "id": "Meter1", "consumption": 12345, "type": "water"}\n',
         ""
     ]
-    
+
     mock_proc = mocker.Mock()
     mock_proc.stdout.readline.side_effect = fake_lines
     mock_proc.poll.side_effect = [None, 1] # Run once, then die
@@ -38,7 +38,7 @@ def test_neptune_water_meter_math(mocker):
         if args[1] == "meter_reading" and args[2] == 1234.5:
             found = True
             break
-            
+
     assert found, "CRITICAL: Neptune consumption was NOT divided by 10!"
 
 def test_auto_dewpoint_calculation(mocker):
@@ -47,14 +47,14 @@ def test_auto_dewpoint_calculation(mocker):
     """
     # 1. Setup mocks
     mock_processor = mocker.Mock()
-    
+
     # 2. Simulate a device with Temp (C) and Humidity
     # 20C + 50% Hum = ~48.7F Dew Point
     fake_lines = [
         '{"model": "Acurite", "id": "A1", "temperature_C": 20.0, "humidity": 50}\n',
         ""
     ]
-    
+
     mock_proc = mocker.Mock()
     mock_proc.stdout.readline.side_effect = fake_lines
     mock_proc.poll.side_effect = [None, 1]
@@ -74,5 +74,5 @@ def test_auto_dewpoint_calculation(mocker):
             val = call.args[2]
             assert 48.0 < val < 50.0 # Approximate check
             found_dp = True
-            
+
     assert found_dp, "Dew Point was not auto-calculated!"

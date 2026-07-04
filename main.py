@@ -74,10 +74,10 @@ def timestamped_print(*args, **kwargs):
     time_prefix = f"{c_dim}[{now}]{c_reset}"
     msg = " ".join(map(str, args))
     lower_msg = msg.lower()
-    
-    header = f"{c_green}INFO{c_reset}{c_white}:{c_reset}" 
+
+    header = f"{c_green}INFO{c_reset}{c_white}:{c_reset}"
     special_formatting_applied = False
-    
+
     if any(x in lower_msg for x in ["error", "critical", "failed", "crashed"]):
         header = f"{c_red}ERROR{c_reset}{c_white}:{c_reset}"
         msg = msg.replace("CRITICAL:", "").replace("ERROR:", "").strip()
@@ -187,12 +187,12 @@ def main():
     processor = DataProcessor(mqtt_handler)
     threading.Thread(target=processor.start_throttle_loop, daemon=True).start()
 
-    sys_id = get_system_mac().replace(":", "").lower() 
+    sys_id = get_system_mac().replace(":", "").lower()
     sys_model = config.BRIDGE_NAME
-    
+
     print("[STARTUP] Scanning USB bus for RTL-SDR devices...")
     detected_devices = discover_rtl_devices()
-    
+
     # If multiple dongles share the same USB serial (e.g., '00000001'), append index
     # (e.g., '00000001-1') so they don't overwrite each other in the hardware map.
     _seen_usb = {}
@@ -227,7 +227,7 @@ def main():
         for d in detected_devices:
             sid = str(d.get('id', ''))
             serial_counts[sid] = serial_counts.get(sid, 0) + 1
-            if 'id' in d and 'index' in d: pass 
+            if 'id' in d and 'index' in d: pass
 
         for sid, count in serial_counts.items():
             if count > 1:
@@ -257,21 +257,21 @@ def main():
             radio.setdefault("slot", slot)  # fallback when 'id' is missing
 
             r_name = radio.get("name", "Unknown")
-            
+
             warns = validate_radio_config(radio)
             for w in warns:
                 print(f"[STARTUP] CONFIG WARNING: [Radio: {r_name}] {w}")
 
-            target_id = radio.get("id") 
+            target_id = radio.get("id")
             if target_id: target_id = str(target_id).strip()
-            
+
             if target_id and target_id in seen_config_ids:
                 print(f"[STARTUP] CONFIG ERROR: [Radio: {r_name}] Duplicate ID '{target_id}' found in settings. Skipping this radio to prevent conflicts.")
-                continue 
-            
+                continue
+
             if target_id:
                 seen_config_ids.add(target_id)
-            
+
             if target_id and target_id in serial_to_index:
                 idx = serial_to_index[target_id]
                 radio['index'] = idx
@@ -287,13 +287,13 @@ def main():
                 daemon=True,
             ).start()
             time.sleep(5)
-            
+
         if detected_devices:
             for d in detected_devices:
                 d_id = str(d.get("id"))
                 if d_id not in configured_ids:
                     print(f"[STARTUP] WARNING: [Radio: Serial {d_id}] Detected but NOT configured. It is currently idle.")
-            
+
     else:
         # --- B. SMART AUTO-CONFIGURATION MODE ---
         if detected_devices:
@@ -658,27 +658,27 @@ def main():
                     args=(radio_setup, mqtt_handler, processor, sys_id, sys_model),
                     daemon=True,
                 ).start()
-           
+
         else:
             # --- UPDATED: Warning for Fallback Mode ---
             print("[STARTUP] WARNING: [System] No hardware detected and no configuration provided. Attempting to start default device '0' (this will likely fail).")
-            
+
             # 1. SMART DEFAULT LOGIC
             def_freqs = config.RTL_DEFAULT_FREQ.split(",")
             def_hop = config.RTL_DEFAULT_HOP_INTERVAL
-            
+
             # If only 1 frequency is set, disable hopping to prevent the warning
-            if len(def_freqs) < 2: 
+            if len(def_freqs) < 2:
                 def_hop = 0
 
             auto_radio = {
                 "slot": 0,
                 "name": "RTL_auto", "id": "0",
-                "freq": config.RTL_DEFAULT_FREQ,             
+                "freq": config.RTL_DEFAULT_FREQ,
                 "hop_interval": def_hop,   # <--- UPDATED: Use the calculated variable, not the config!
                 "rate": config.RTL_DEFAULT_RATE
             }
-            
+
             warns = validate_radio_config(auto_radio)
             for w in warns:
                 print(f"[STARTUP] CONFIG WARNING: [Radio: RTL_auto] {w}")

@@ -4,7 +4,7 @@
 # support (useful for Soapy-supported radios like HackRF, LimeSDR, PlutoSDR,
 # SoapyRemote, etc.).
 
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.12-alpine3.21
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-python:3.14-alpine3.21
 
 # ==========================================================================
 # STAGE 0: Build rtl_433 (and an optional SoapyHackRF module)

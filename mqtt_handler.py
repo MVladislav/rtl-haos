@@ -138,6 +138,27 @@ def _parse_boolish(value):
             return False
     return None
 
+
+# Binary sensor field definitions.
+# Format: field_name -> (device_class, friendly_name, invert)
+# - device_class: Home Assistant binary_sensor device_class
+# - friendly_name: Display name for the entity
+# - invert: If True, ON means the condition is NOT present (like battery_ok)
+#           If False, ON means the condition IS present (like tamper=1 means tampered)
+BINARY_SENSOR_FIELDS = {
+    # DSC/Honeywell security sensors
+    "tamper": ("tamper", "Tamper", False),
+    "alarm": ("safety", "Alarm", False),
+    "contact_open": ("door", "Door", False),  # 1 = open
+    "reed_open": ("door", "Door", False),  # 1 = open
+    "detect_wet": ("moisture", "Water Detected", False),
+    "ext_power": ("plug", "External Power", False),
+    # Acurite leak detectors (1190/1192) and lightning (6045M)
+    "leak_detected": ("moisture", "Leak Detected", False),
+    "water": ("moisture", "Water Detected", False),
+    "active": ("running", "Lightning Active", False),
+}
+
 class HomeNodeMQTT:
     def __init__(self, version="Unknown"):
         self.sw_version = version
@@ -145,7 +166,7 @@ class HomeNodeMQTT:
         self.TOPIC_AVAILABILITY = f"home/status/rtl_bridge{config.ID_SUFFIX}/availability"
         self.client.username_pw_set(config.MQTT_SETTINGS["user"], config.MQTT_SETTINGS["pass"])
         self.client.will_set(self.TOPIC_AVAILABILITY, "offline", retain=True)
-        
+
         # Callbacks
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
@@ -160,7 +181,7 @@ class HomeNodeMQTT:
         # Battery alert state (battery_ok -> Battery Low)
         # Keyed by clean_id (device base unique id).
         self._battery_state: dict[str, dict] = {}
-        
+
         self.discovery_lock = threading.Lock()
 
         # --- Utility meter inference cache (per-device) ---
@@ -185,9 +206,9 @@ class HomeNodeMQTT:
         # --- Nuke Logic Variables ---
         self.nuke_counter = 0
         self.nuke_last_press = 0
-        self.NUKE_THRESHOLD = 5       
-        self.NUKE_TIMEOUT = 5.0       
-        self.is_nuking = False        
+        self.NUKE_THRESHOLD = 5
+        self.NUKE_TIMEOUT = 5.0
+        self.is_nuking = False
 
     def _utility_meta_override(self, clean_id, field):
         """Return (unit, device_class, icon, friendly_name) for utility meter readings, or None."""
@@ -268,15 +289,15 @@ class HomeNodeMQTT:
         if rc == 0:
             c.publish(self.TOPIC_AVAILABILITY, "online", retain=True)
             print("[MQTT] Connected Successfully.")
-            
+
             # 1. Subscribe to Nuke Command
             self.nuke_command_topic = f"home/status/rtl_bridge{config.ID_SUFFIX}/nuke/set"
             c.subscribe(self.nuke_command_topic)
-            
+
             # 2. Subscribe to Restart Command
             self.restart_command_topic = f"home/status/rtl_bridge{config.ID_SUFFIX}/restart/set"
             c.subscribe(self.restart_command_topic)
-            
+
             # 3. Publish Buttons
             self._publish_nuke_button()
             self._publish_restart_button()
@@ -303,7 +324,7 @@ class HomeNodeMQTT:
                 try:
                     payload_str = msg.payload.decode("utf-8")
                     data = json.loads(payload_str)
-                    
+
                     # Check Manufacturer Signature
                     device_info = data.get("device", {})
                     manufacturer = device_info.get("manufacturer", "")
@@ -325,7 +346,7 @@ class HomeNodeMQTT:
         """Creates the 'Delete Entities' button."""
         sys_id = get_system_mac().replace(":", "").lower()
         unique_id = f"rtl_bridge_nuke{config.ID_SUFFIX}"
-        
+
         payload = {
             "name": "Delete Entities (Press 5x)",
             "command_topic": self.nuke_command_topic,
@@ -341,7 +362,7 @@ class HomeNodeMQTT:
             },
             "availability_topic": self.TOPIC_AVAILABILITY
         }
-        
+
         config_topic = f"homeassistant/button/{unique_id}/config"
         self.client.publish(config_topic, json.dumps(payload), retain=True)
 
@@ -349,7 +370,7 @@ class HomeNodeMQTT:
         """Creates the 'Restart Radios' button."""
         sys_id = get_system_mac().replace(":", "").lower()
         unique_id = f"rtl_bridge_restart{config.ID_SUFFIX}"
-        
+
         payload = {
             "name": "Restart Radios",
             "command_topic": self.restart_command_topic,
@@ -365,7 +386,7 @@ class HomeNodeMQTT:
             },
             "availability_topic": self.TOPIC_AVAILABILITY
         }
-        
+
         config_topic = f"homeassistant/button/{unique_id}/config"
         self.client.publish(config_topic, json.dumps(payload), retain=True)
 
@@ -374,12 +395,12 @@ class HomeNodeMQTT:
         now = time.time()
         if now - self.nuke_last_press > self.NUKE_TIMEOUT:
             self.nuke_counter = 0
-        
+
         self.nuke_counter += 1
         self.nuke_last_press = now
-        
+
         remaining = self.NUKE_THRESHOLD - self.nuke_counter
-        
+
         if remaining > 0:
             print(f"[NUKE] Safety Lock: Press {remaining} more times to DETONATE.")
         else:
@@ -399,7 +420,7 @@ class HomeNodeMQTT:
         """Stops the scanning process and resets state."""
         self.is_nuking = False
         self.client.unsubscribe("homeassistant/+/+/config")
-        
+
         with self.discovery_lock:
             self.discovery_published.clear()
             self.last_sent_values.clear()
@@ -445,7 +466,7 @@ class HomeNodeMQTT:
         with self.discovery_lock:
 
             default_meta = (None, "none", "mdi:eye", sensor_name.replace("_", " ").title())
-            
+
             if sensor_name.startswith("radio_status"):
                 base_meta = FIELD_META.get("radio_status", default_meta)
                 unit, device_class, icon, default_fname = base_meta
@@ -468,7 +489,7 @@ class HomeNodeMQTT:
 
             entity_cat = "diagnostic"
             if sensor_name in getattr(config, 'MAIN_SENSORS', []):
-                entity_cat = None 
+                entity_cat = None
             if sensor_name.startswith("radio_status"):
                 entity_cat = None
 
@@ -480,12 +501,12 @@ class HomeNodeMQTT:
                 "identifiers": [f"rtl433_{device_model}_{unique_id.split('_')[0]}"],
                 "manufacturer": "rtl-haos",
                 "model": device_model,
-                "name": device_name 
+                "name": device_name
             }
 
             if device_model != config.BRIDGE_NAME:
                 device_registry["via_device"] = "rtl433_"+config.BRIDGE_NAME+"_"+config.BRIDGE_ID
-            
+
             if device_model == config.BRIDGE_NAME:
                 device_registry["sw_version"] = self.sw_version
 
@@ -524,7 +545,7 @@ class HomeNodeMQTT:
                     payload["expire_after"] = max(int(config.RTL_EXPIRE_AFTER), 86400)
                 else:
                     payload["expire_after"] = config.RTL_EXPIRE_AFTER
-            
+
             payload["availability_topic"] = self.TOPIC_AVAILABILITY
 
             # Signature for safe updates: if this changes, we re-publish the retained config.
@@ -556,8 +577,8 @@ class HomeNodeMQTT:
 
         self.tracked_devices.add(device_name)
 
-        clean_id = clean_mac(sensor_id) 
-        
+        clean_id = clean_mac(sensor_id)
+
         # Remember model for model-specific discovery/unit overrides.
         self._device_model_by_id[clean_id] = str(device_model)
 
@@ -673,6 +694,29 @@ class HomeNodeMQTT:
             if friendly_name is None:
                 friendly_name = "Battery Low"
 
+        # Handle other binary sensor fields (tamper, alarm, contact_open, etc.)
+        elif field in BINARY_SENSOR_FIELDS:
+            parsed = _parse_boolish(value)
+            if parsed is None:
+                return
+
+            device_class, default_friendly, invert = BINARY_SENSOR_FIELDS[field]
+
+            # Determine ON/OFF state
+            # invert=False: 1/True -> ON (condition present)
+            # invert=True: 1/True -> OFF (condition NOT present, like battery_ok)
+            if invert:
+                is_on = not parsed
+            else:
+                is_on = parsed
+
+            domain = "binary_sensor"
+            out_value = "ON" if is_on else "OFF"
+            extra_payload = {"payload_on": "ON", "payload_off": "OFF", "device_class": device_class}
+
+            if friendly_name is None:
+                friendly_name = default_friendly
+
         discovery_published_now = self._publish_discovery(
             field,
             state_topic,
@@ -696,3 +740,70 @@ class HomeNodeMQTT:
                 # --- NEW: Check Verbosity Setting ---
                 if config.VERBOSE_TRANSMISSIONS:
                     print(f" -> TX {device_name} [{field}]: {out_value}")
+
+    def send_health_alert(
+        self,
+        sensor_id: str,
+        is_problem: bool,
+        reason: str,
+        device_name: str,
+        device_model: str,
+    ) -> None:
+        """Publish SDR health alert as binary_sensor with reason attribute.
+
+        Args:
+            sensor_id: Base device ID (e.g., system MAC)
+            is_problem: True if there's a health problem (ON state)
+            reason: Human-readable reason for the alert
+            device_name: HA device name
+            device_model: HA device model
+        """
+        clean_id = clean_mac(sensor_id)
+        field = "sdr_health_alert"
+        unique_id = f"{clean_id}_{field}{config.ID_SUFFIX}"
+        state_topic = f"home/rtl_devices/{clean_id}/{field}"
+        attr_topic = f"home/rtl_devices/{clean_id}/{field}/attributes"
+
+        with self.discovery_lock:
+            # Publish discovery if not already done
+            if unique_id not in self.discovery_published:
+                sys_id = get_system_mac().replace(":", "").lower()
+                device_registry = {
+                    "identifiers": [f"rtl433_{config.BRIDGE_NAME}_{sys_id}"],
+                    "manufacturer": "rtl-haos",
+                    "model": device_model,
+                    "name": device_name,
+                    "sw_version": self.sw_version,
+                }
+
+                payload = {
+                    "name": "SDR Health Alert",
+                    "state_topic": state_topic,
+                    "unique_id": unique_id,
+                    "device": device_registry,
+                    "device_class": "problem",
+                    "icon": "mdi:alert-octagon",
+                    "payload_on": "ON",
+                    "payload_off": "OFF",
+                    "json_attributes_topic": attr_topic,
+                    "availability_topic": self.TOPIC_AVAILABILITY,
+                }
+
+                config_topic = f"homeassistant/binary_sensor/{unique_id}/config"
+                self.client.publish(config_topic, json.dumps(payload), retain=True)
+                self.discovery_published.add(unique_id)
+
+        # Publish state
+        state_value = "ON" if is_problem else "OFF"
+        state_key = f"{unique_id}_state"
+        if self.last_sent_values.get(state_key) != state_value:
+            self.client.publish(state_topic, state_value, retain=True)
+            self.last_sent_values[state_key] = state_value
+
+        # Publish attributes (always update reason)
+        attr_payload = {"reason": reason if reason else "OK"}
+        attr_key = f"{unique_id}_attr"
+        attr_json = json.dumps(attr_payload)
+        if self.last_sent_values.get(attr_key) != attr_json:
+            self.client.publish(attr_topic, attr_json, retain=True)
+            self.last_sent_values[attr_key] = attr_json

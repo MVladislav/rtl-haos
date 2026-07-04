@@ -7,15 +7,15 @@ def test_critical_fields_exist():
     """
     # List of keys that MUST exist for the system to be useful
     critical_keys = [
-        "temperature", 
-        "humidity", 
-        "rssi", 
-        "snr", 
-        "noise", 
+        "temperature",
+        "humidity",
+        "rssi",
+        "snr",
+        "noise",
         "sys_device_count",
         "freq"
     ]
-    
+
     for key in critical_keys:
         assert key in FIELD_META, f"CRITICAL: Key '{key}' was deleted from FIELD_META!"
 

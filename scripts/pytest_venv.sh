@@ -99,4 +99,3 @@ if [[ "${RUN}" -eq 1 ]]; then
 else
   echo "Venv ready. Activate with: source ${VENV_DIR}/bin/activate"
 fi
-

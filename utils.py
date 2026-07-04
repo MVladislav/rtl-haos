@@ -20,21 +20,21 @@ _SYSTEM_MAC = None
 
 def get_system_mac():
     global _SYSTEM_MAC
-    if _SYSTEM_MAC: 
+    if _SYSTEM_MAC:
         return _SYSTEM_MAC
 
     # 1. PREFERRED: Use Static ID from Config
     if config.BRIDGE_ID:
         _SYSTEM_MAC = config.BRIDGE_ID
         return _SYSTEM_MAC
-    
+
     try:
         # 2. FALLBACK: Use Hostname (Dynamic on HAOS!)
         host_id = socket.gethostname()
-        
+
         if not host_id:
             host_id = "rtl-bridge-default"
-            
+
         _SYSTEM_MAC = host_id
         return _SYSTEM_MAC
 
@@ -52,7 +52,7 @@ def calculate_dew_point(temp_c, humidity):
     if temp_c is None or humidity is None:
         return None
     if humidity <= 0:
-        return None 
+        return None
     try:
         b = 17.62
         c = 243.12

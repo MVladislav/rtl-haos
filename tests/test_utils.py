@@ -10,23 +10,23 @@ def test_system_id_stability(mocker):
     mocker.patch("config.BRIDGE_ID", "static-id-123")
     # Reset the cache global variable for the test
     mocker.patch("utils._SYSTEM_MAC", None)
-    
+
     assert get_system_mac() == "static-id-123"
 
     # Case 2: Config ID is Missing -> Use Hostname
     mocker.patch("config.BRIDGE_ID", None)
     mocker.patch("utils._SYSTEM_MAC", None) # Reset cache
     mocker.patch("socket.gethostname", return_value="my-host-name")
-    
+
     assert get_system_mac() == "my-host-name"
 
     # Case 3: Hostname fails -> Fallback
     mocker.patch("config.BRIDGE_ID", None)
     mocker.patch("utils._SYSTEM_MAC", None) # Reset cache
     mocker.patch("socket.gethostname", return_value="")
-    
+
     assert get_system_mac() == "rtl-bridge-default"
-    
+
 def test_clean_mac():
     assert clean_mac("12:34:AB") == "1234ab"
     assert clean_mac("  My Device  ") == "mydevice"
@@ -55,7 +55,7 @@ def test_validate_radio_config():
     assert "missing a device 'id'" in warns[0]
 
     # 3. Bad Frequency (No 'M')
-    bad_freq = {"id": "1", "freq": "433"} 
+    bad_freq = {"id": "1", "freq": "433"}
     warns = validate_radio_config(bad_freq)
     assert any("impossible" in w for w in warns)
 

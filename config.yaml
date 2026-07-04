@@ -1,6 +1,6 @@
-name: "RTL-HAOS (VM-TEST)"
-description: "RTL-SDR to Home Assistant MQTT bridge with signal diagnostics and system monitoring (VM-TEST)"
-version: "1.2.2-alpha.0"
+name: "RTL-HAOS"
+description: "RTL-SDR to Home Assistant MQTT bridge with signal diagnostics and system monitoring"
+version: "1.2.0-rc.2"
 slug: rtl-haos
 url: "https://github.com/jaronmcd/rtl-haos"
 arch:
@@ -40,6 +40,13 @@ options:
   # 0 disables latching and clears low on the next OK
   battery_ok_clear_after: 300
 
+  # --- SDR Health Monitoring ---
+  # Publishes binary_sensor.sdr_health_alert (device_class: problem) for HA automations.
+  # Alert conditions: restart loops, no data received, USB/crash errors.
+  sdr_health_restart_threshold: 3 # Restarts within window to trigger alert
+  sdr_health_restart_window: 600 # Window in seconds (default: 10 min)
+  sdr_health_no_data_timeout: 900 # Seconds without data to trigger alert (default: 15 min)
+
   # --- DEFAULTS (Add-on UI) ---
   # Global defaults are NOT exposed in the add-on UI.
   # In add-on mode, use rtl_config below to set freq/rate/hop per-radio.
@@ -56,12 +63,6 @@ options:
   # If you want to control rates / hopping / exact frequencies, define rtl_config
   # manually (and you are responsible for the full radio config).
   rtl_auto_band_plan: "auto"
-
-  # Which auto radio gets the first detected dongle when rtl_config is empty.
-  # primary   : 433.92M (typical sensors)
-  # secondary : region-aware high band (868/915)
-  # hopper    : regional hopper (often includes 315M)
-  rtl_auto_priority: "primary"
 
   # --- Device Filtering ---
   # Define device patterns to allow or disallow.
@@ -80,11 +81,11 @@ options:
   device_whitelist: []
 
 schema:
-  gas_unit: str
   mqtt_host: str
   mqtt_port: port
   mqtt_user: str
   mqtt_pass: password
+  gas_unit: str?
   bridge_id: str
   bridge_name: str
   rtl_expire_after: int
@@ -98,6 +99,19 @@ schema:
   rtl_433_config_path: str?
   rtl_433_config_inline: str?
   rtl_433_bin: str?
+
+  # Auto multi-radio (when rtl_config is empty)
+  rtl_auto_band_plan: list(auto|us|eu|world)
+
+  battery_ok_clear_after: int
+
+  # SDR health monitoring
+  sdr_health_restart_threshold: int?
+  sdr_health_restart_window: int?
+  sdr_health_no_data_timeout: int?
+
+  # --- DELETED GLOBAL SCHEMA ---
+  # The UI will no longer show the 3 text boxes for defaults.
 
   rtl_config:
     - name: str
@@ -127,15 +141,6 @@ schema:
       config_path: str?
       config_inline: str?
       bin: str?
-
-  # Auto multi-radio (when rtl_config is empty)
-  rtl_auto_band_plan: list(auto|us|eu|world)
-  rtl_auto_priority: list(primary|secondary|hopper)
-
-  battery_ok_clear_after: int
-
-  # --- DELETED GLOBAL SCHEMA ---
-  # The UI will no longer show the 3 text boxes for defaults.
 
   device_blacklist:
     - str

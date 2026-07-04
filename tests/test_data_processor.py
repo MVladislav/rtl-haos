@@ -26,7 +26,7 @@ class DataProcessor:
         Otherwise, stores it in the buffer.
         """
         interval = getattr(config, "RTL_THROTTLE_INTERVAL", 0)
-        
+
         # 1. Immediate Dispatch (No Throttling)
         if interval <= 0:
             self.mqtt_handler.send_sensor(clean_id, field, value, dev_name, model, is_rtl=True)
@@ -36,22 +36,22 @@ class DataProcessor:
         with self.lock:
             if clean_id not in self.buffer:
                 self.buffer[clean_id] = {}
-            
+
             # Store metadata so we know who this device is when flushing
             if "__meta__" not in self.buffer[clean_id]:
                 self.buffer[clean_id]["__meta__"] = {
-                    "name": dev_name, 
-                    "model": model, 
+                    "name": dev_name,
+                    "model": model,
                     "radio": radio_name,
                     "freq": radio_freq  # --- FIX 2: Store the frequency ---
                 }
             else:
                 self.buffer[clean_id]["__meta__"]["radio"] = radio_name
                 self.buffer[clean_id]["__meta__"]["freq"] = radio_freq
-            
+
             if field not in self.buffer[clean_id]:
                 self.buffer[clean_id][field] = []
-            
+
             self.buffer[clean_id][field].append(value)
 
     def flush_once(self):

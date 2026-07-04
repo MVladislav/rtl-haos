@@ -51,7 +51,7 @@
 - **FIX:** Utility meters now publish **correct units and scaling** based on the detected commodity:
   - **Electric (ERT-SCM / SCMplus):** publishes **Energy (kWh)** and converts from the protocol’s hundredths (÷100).
   - **Gas (ERT-SCM / SCMplus):** publishes **Gas volume (ft³)** by default (raw counter, no scaling).
-  
+
 - **NEW:** Add-on option `gas_unit` to publish gas in your preferred unit:
   - `ft3` (default): publish the raw counter as **ft³**
   - `ccf`: publish **CCF** (billing units) by converting from ft³ (÷100)
@@ -101,7 +101,7 @@
   - `0` = clear LOW immediately on the next OK report
   - `>0` = LOW only clears after `battery_ok` stays OK for that many seconds (helps prevent flapping)
 
-## v1.1.9  
+## v1.1.9
 - **FIX:** Added -M level back to rtl_433 cmd for radio signal metrics
 
 ## v1.1.8

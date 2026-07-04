@@ -1,4 +1,9 @@
 configuration:
+  gas_unit:
+    name: Gas Unit
+    description: >-
+      Unit for gas utility readings. Use 'ft3' (cubic feet) or 'ccf' (hundred cubic feet).
+      Defaults to 'ft3' if left empty.
   mqtt_host:
     name: MQTT Host
     description: >-
@@ -16,7 +21,7 @@ configuration:
   bridge_id:
     name: Bridge ID
     description: >-
-      A unique identifier suffix for this bridge (default: 42). 
+      A unique identifier suffix for this bridge (default: 42).
       Useful if running multiple bridges on the same network to prevent conflicts.
   bridge_name:
     name: Bridge Name
@@ -28,7 +33,7 @@ configuration:
       If enabled, the Radio Status sensor will show "Last: HH:MM:SS" (updating every 5s).
       If disabled, it will show a static "Online" status (cleaner log).
       WARNING: Enabling this may increase log size significantly over time.
-  
+
   verbose_transmissions:
     name: Verbose Transmissions
     description: >-
@@ -43,32 +48,18 @@ configuration:
       Set to 0 to clear immediately.
 
   rtl_auto_band_plan:
-    name: Auto Mode: Region / Band Plan
+    name: Region / Band Plan
     description: >-
-      Used only when 'Manual Mode: Radio Configuration' is empty.
-
       The only setting needed for auto mode.
       auto = use Home Assistant country when available.
       us = force 915 MHz for Radio #2.
       eu = force 868 MHz for Radio #2.
       world = hop 868/915 for Radio #2 (best when country is unknown).
 
-  rtl_auto_priority:
-    name: Auto Mode: First Dongle Priority
-    description: >-
-      Used only when 'Manual Mode: Radio Configuration' is empty.
-
-      Controls which auto radio gets the FIRST detected SDR (handy for single-dongle setups).
-      primary = 433.92 MHz
-      secondary = region-aware high band (868/915)
-      hopper = regional hopper (often includes 315 MHz)
-
   rtl_config:
-    name: Manual Mode: Radio Configuration
+    name: Radio Configuration
     description: >-
-      Manual mode (advanced): Define radios explicitly.
-
-      If this list is non-empty, auto mode is disabled and Auto Mode settings are ignored.
+      Manual mode (advanced): Define radios explicitly. If this list is non-empty, auto mode is disabled.
       Click 'Add' to configure a stick.
     keys:
       name:
@@ -80,7 +71,7 @@ configuration:
       id:
         name: Device Serial (Optional)
         description: >-
-          The specific USB Serial Number (e.g., '101', '102') to use. 
+          The specific USB Serial Number (e.g., '101', '102') to use.
           Leave empty to auto-assign based on order.
       rate:
         name: Sample Rate (Optional)
@@ -99,7 +90,7 @@ configuration:
     description: >-
       Seconds to buffer readings before publishing. Set to 0 for real-time
       updates, or higher (e.g., 30) to average readings and reduce database size.
-  
+
   # --- UPDATED SECTION ---
   debug_raw_json:
     name: Debug Raw JSON
@@ -107,14 +98,13 @@ configuration:
       If enabled, the raw JSON data received from rtl_433 will be printed to the add-on logs.
       Useful for troubleshooting or identifying the IDs of new devices.
   # -----------------------
-
   device_blacklist:
     name: Device Blacklist
     description: >-
-      A list of device patterns to ignore (supports wildcards). 
+      A list of device patterns to ignore (supports wildcards).
       Example: 'SimpliSafe*', 'EezTire*'
   device_whitelist:
     name: Device Whitelist
     description: >-
-      If set, ONLY these device patterns (model or ID) will be processed. 
+      If set, ONLY these device patterns (model or ID) will be processed.
       Leave empty to allow all devices (except those in the blacklist).
